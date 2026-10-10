@@ -2,6 +2,9 @@ import mongoose from 'mongoose';
 
 let isConnected = false;
 
+const isServerless = () =>
+  Boolean(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
 export const connectDB = async () => {
   if (isConnected || mongoose.connection.readyState >= 1) {
     return;
@@ -10,7 +13,7 @@ export const connectDB = async () => {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
     console.error('FATAL: MONGODB_URI is not set in environment variables');
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production' && !isServerless()) {
       process.exit(1);
     }
     throw new Error('MONGODB_URI is not defined');
@@ -24,7 +27,7 @@ export const connectDB = async () => {
     console.log(`[MongoDB] Connected successfully to host: ${conn.connection.host}, database: ${conn.connection.name}`);
   } catch (error) {
     console.error(`[MongoDB] Connection failed: ${error.message}`);
-    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+    if (process.env.NODE_ENV !== 'production' && !isServerless()) {
       process.exit(1);
     }
     throw error;

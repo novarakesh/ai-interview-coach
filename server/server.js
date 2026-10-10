@@ -26,8 +26,13 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const isServerless = Boolean(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
 // Connect to MongoDB Atlas
-connectDB();
+connectDB().catch((err) => console.error(`[MongoDB] ${err.message}`));
+
+// Behind Netlify/Vercel proxies, trust X-Forwarded-For so rate limiting sees real client IPs
+app.set('trust proxy', 1);
 
 // Security and utility middlewares
 app.use(
@@ -102,7 +107,7 @@ app.get('*', (req, res, next) => {
 app.use(errorHandler);
 
 // Start server if not running in serverless environment
-if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+if (process.env.NODE_ENV !== 'test' && !isServerless) {
   app.listen(PORT, () => {
     console.log(`[Server] AI Interview Coach API running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
     console.log(`[Server] Client Origin allowed: ${allowedOrigins.join(', ')}`);
