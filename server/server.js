@@ -16,12 +16,13 @@ import speechRoutes from './routes/speechRoutes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// import.meta.url is unavailable when bundled to CommonJS (e.g. Netlify Functions)
+const serverDir =
+  typeof import.meta.url === 'string' ? path.dirname(fileURLToPath(import.meta.url)) : process.cwd();
 
 // Load environment variables (supports root .env and server/.env)
 dotenv.config();
-dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(serverDir, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -76,7 +77,7 @@ app.use('/api/speech', speechRoutes);
 
 
 // Serve static frontend build from ../client/dist
-const clientDistPath = path.join(__dirname, '../client/dist');
+const clientDistPath = path.join(serverDir, '../client/dist');
 app.use(express.static(clientDistPath));
 
 // Health check endpoint
