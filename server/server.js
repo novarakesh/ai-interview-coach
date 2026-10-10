@@ -16,18 +16,24 @@ import speechRoutes from './routes/speechRoutes.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// import.meta.url is unavailable when bundled to CommonJS (e.g. Netlify Functions)
+const serverDir =
+  typeof import.meta.url === 'string' ? path.dirname(fileURLToPath(import.meta.url)) : process.cwd();
 
 // Load environment variables (supports root .env and server/.env)
 dotenv.config();
-dotenv.config({ path: path.join(__dirname, '.env') });
+dotenv.config({ path: path.join(serverDir, '.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+const isServerless = Boolean(process.env.VERCEL || process.env.NETLIFY || process.env.AWS_LAMBDA_FUNCTION_NAME);
+
 // Connect to MongoDB Atlas
-connectDB();
+connectDB().catch((err) => console.error(`[MongoDB] ${err.message}`));
+
+// Behind Netlify/Vercel proxies, trust X-Forwarded-For so rate limiting sees real client IPs
+app.set('trust proxy', 1);
 
 // Security and utility middlewares
 app.use(
@@ -71,7 +77,7 @@ app.use('/api/speech', speechRoutes);
 
 
 // Serve static frontend build from ../client/dist
-const clientDistPath = path.join(__dirname, '../client/dist');
+const clientDistPath = path.join(serverDir, '../client/dist');
 app.use(express.static(clientDistPath));
 
 // Health check endpoint
@@ -102,7 +108,7 @@ app.get('*', (req, res, next) => {
 app.use(errorHandler);
 
 // Start server if not running in serverless environment
-if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
+if (process.env.NODE_ENV !== 'test' && !isServerless) {
   app.listen(PORT, () => {
     console.log(`[Server] AI Interview Coach API running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
     console.log(`[Server] Client Origin allowed: ${allowedOrigins.join(', ')}`);
